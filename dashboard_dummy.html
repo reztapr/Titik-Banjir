@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Banjir Bekasi</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style>
+        /* ====================================
+           CSS VARIABLES
+        ==================================== */
+        :root {
+            --primary-color: #4a90e2;
+            --primary-light: #6ba3e8;
+            --primary-dark: #357abd;
+            --secondary-color: #5a67d8;
+            --accent-color: #48bb78;
+            --success-color: #48bb78;
+            --danger-color: #f56565;
+            --warning-color: #ed8936;
+            --info-color: #4299e1;
+            --text-dark: #2d3748;
+            --text-medium: #4a5568;
+            --text-light: #718096;
+            --text-lighter: #a0aec0;
+            --bg-white: #ffffff;
+            --bg-light: #f7fafc;
+            --bg-lighter: #edf2f7;
+            --border-color: #e2e8f0;
+            --border-light: #f1f5f9;
+            --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --transition-fast: 0.2s ease;
+            --transition-normal: 0.3s ease;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+            padding: 8px;
+            color: var(--text-dark);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container { max-width: 100%; width: 100%; margin: 0 auto; padding: 0 10px; }
+
+        /* ====================================
+           HEADER
+        ==================================== */
+        .header {
+            text-align: center;
+            color: var(--text-dark);
+            margin-bottom: 25px;
+            margin-left: -10px;
+            margin-right: -10px;
+            padding: 30px 20px;
+            background: var(--bg-white);
+            box-shadow: var(--shadow-sm);
+            width: calc(100% + 20px);
+            animation: fadeInDown 0.6s ease-out;
+        }
+        .header h1 { font-size: 2.2em; margin-bottom: 10px; font-weight: 600; letter-spacing: -0.5px; }
+        .header p { font-size: 1em; color: var(--text-medium); }
+
+        /* ====================================
+           DASHBOARD GRID
+        ==================================== */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .full-width { grid-column: 1 / -1; }
+
+        @media (min-width: 1024px) {
+            .dashboard-grid { grid-template-columns: repeat(12, 1fr); }
+            .district-narrow { grid-column: span 4; }
+            .chart-wide { grid-column: span 8; }
+            .dashboard-grid > .card:not(.district-narrow):not(.chart-wide):not(.full-width) { grid-column: span 6; }
+        }
+        @media (min-width: 1200px) {
+            .dashboard-grid { grid-template-columns: repeat(12, 1fr); }
+            .district-narrow { grid-column: span 4; }
+            .chart-wide { grid-column: span 8; }
+        }
+
+        /* Half-screen fix */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .dashboard-grid { grid-template-columns: 1fr; gap: 16px; }
+            .district-narrow, .chart-wide, .full-width { grid-column: span 1; }
+            .stats-section .stats-container { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+            .chart-container { height: 280px; min-height: 280px; }
+            #map { height: 450px; }
+            .district-stats-container { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 767px) {
+            .dashboard-grid { grid-template-columns: 1fr; gap: 18px; }
+            .district-narrow, .chart-wide { grid-column: span 1; }
+            .card { padding: 20px; }
+            #map { height: 350px; }
+            .stats-section .stats-container { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .chart-container { height: 250px; min-height: 250px; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 5px; }
+            .container { padding: 0 5px; }
+            .dashboard-grid { gap: 15px; grid-template-columns: 1fr; }
+            .district-narrow, .chart-wide { grid-column: span 1; }
+            .stats-section .stats-container { grid-template-columns: 1fr; gap: 10px; }
+            #map { height: 300px; }
+            .chart-container { height: 220px; }
+        }
+
+        /* ====================================
+           CARD
+        ==================================== */
+        .card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+            animation: fadeInUp 0.6s ease-out;
+            display: flex;
+            flex-direction: column;
+            min-height: fit-content;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+        .card-title {
+            font-size: 1.3em;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* ====================================
+           MAP
+        ==================================== */
+        #map {
+            height: 720px;
+            border-radius: var(--radius-md);
+            z-index: 1;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            position: relative;
+        }
+        .reset-map-control { margin: 10px !important; z-index: 1000 !important; }
+        .leaflet-top.leaflet-right { z-index: 1000 !important; }
+        .reset-map-button {
+            background: var(--bg-white) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: var(--radius-md) !important;
+            padding: 10px 16px !important;
+            box-shadow: var(--shadow-sm) !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            font-size: 0.9em !important;
+            font-weight: 500 !important;
+            color: var(--text-dark) !important;
+            transition: all var(--transition-fast) !important;
+            font-family: inherit !important;
+            min-width: 140px !important;
+            justify-content: center !important;
+        }
+        .reset-map-button:hover {
+            background: var(--primary-color) !important;
+            color: white !important;
+            border-color: var(--primary-color) !important;
+        }
+        .flood-marker {
+            --marker-color: #dc2626;
+            position: relative;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--marker-color);
+            box-shadow: 0 0 0 4px rgba(220,38,38,0.15);
+        }
+        .flood-marker::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 100%; height: 100%;
+            background: var(--marker-color);
+            opacity: 0.45;
+            border-radius: 50%;
+            transform: translate(-50%,-50%) scale(1);
+            animation: pulse 1.8s ease-out infinite;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%,-50%) scale(1); opacity: 0.55; }
+            70% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; }
+            100% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; }
+        }
+
+        /* ====================================
+           STATISTICS
+        ==================================== */
+        .stats-section { padding: 20px; }
+        .stats-section .card-title { margin-bottom: 16px; }
+        .stats-section .stats-container {
+            width: 100%; display: grid;
+            grid-template-columns: repeat(2, 1fr); gap: 16px;
+        }
+        @media (min-width: 1024px) {
+            .stats-section .stats-container { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        }
+        @media (min-width: 600px) and (max-width: 767px) {
+            .stats-section .stats-container { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-light) 100%);
+            color: var(--text-dark);
+            padding: 24px 20px;
+            border-radius: var(--radius-md);
+            text-align: center;
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            min-height: 120px;
+            position: relative; overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: var(--primary-color);
+            transform: scaleX(0);
+            transition: transform var(--transition-fast);
+        }
+        .stat-card:hover::before { transform: scaleX(1); }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--primary-color); }
+        .stat-card.stat-primary { border-left: 4px solid var(--primary-color); }
+        .stat-card.stat-primary .stat-number { color: var(--primary-color); }
+        .stat-card.stat-secondary { border-left: 4px solid var(--secondary-color); }
+        .stat-card.stat-secondary .stat-number { color: var(--secondary-color); }
+        .stat-number { font-size: 2.8em; font-weight: 700; margin-bottom: 8px; line-height: 1; letter-spacing: -1px; }
+        @media (min-width: 1024px) { .stat-number { font-size: 3em; } }
+        .stat-label { font-size: 0.9em; color: var(--text-medium); font-weight: 500; line-height: 1.3; }
+
+        /* ====================================
+           DISTRICT LIST
+        ==================================== */
+        .district-section { min-height: 400px; display: flex; flex-direction: column; }
+        .district-stats-container {
+            display: grid; grid-template-columns: 1fr;
+            gap: 24px; margin-top: 8px;
+        }
+        @media (min-width: 1024px) {
+            .district-stats-container { grid-template-columns: repeat(2, 1fr); }
+        }
+        .district-stats-section { display: flex; flex-direction: column; }
+        .district-stats-title {
+            font-size: 1.1em; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 12px; padding-bottom: 8px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .district-list {
+            flex: 1; max-height: 450px; overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--bg-light);
+        }
+        .district-list::-webkit-scrollbar { width: 8px; }
+        .district-list::-webkit-scrollbar-track { background: var(--bg-light); border-radius: 10px; }
+        .district-list::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 10px; }
+        .district-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background var(--transition-fast), transform var(--transition-fast);
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            margin-bottom: 4px;
+        }
+        .district-item:last-child { border-bottom: none; margin-bottom: 0; }
+        .district-item:hover { background: var(--bg-light); transform: translateX(4px); }
+        .district-item-no-click { cursor: default !important; }
+        .district-item-no-click:hover { background: transparent !important; transform: none !important; }
+        .district-name { font-weight: 600; color: var(--text-dark); font-size: 0.95em; }
+        .district-count {
+            background: var(--primary-color); color: white;
+            padding: 6px 16px; border-radius: 20px;
+            font-weight: 600; font-size: 0.9em;
+            min-width: 50px; text-align: center;
+        }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-light); }
+
+        /* ====================================
+           CHART
+        ==================================== */
+        .chart-section { display: flex; flex-direction: column; min-height: 400px; }
+        .chart-container {
+            position: relative; flex: 1;
+            height: 350px; min-height: 350px;
+            margin-top: 8px; padding: 8px 0;
+        }
+        @media (min-width: 1200px) { .chart-container { height: 400px; min-height: 400px; } }
+
+        /* ====================================
+           FOOTER
+        ==================================== */
+        footer {
+            background: var(--bg-white);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            margin-top: 25px;
+            margin-left: -10px;
+            margin-right: -10px;
+            padding: 25px 22px;
+            width: calc(100% + 20px);
+            text-align: center;
+            animation: fadeIn 0.8s ease-out both;
+        }
+        .footer-content p { font-size: 0.95em; color: var(--text-medium); line-height: 1.75; max-width: 850px; margin: auto; }
+        .last-update { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border-color); font-size: 0.85em; color: var(--text-light); font-style: italic; }
+
+        /* ====================================
+           ANIMATIONS
+        ==================================== */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Leaflet popup */
+        .leaflet-popup-content-wrapper { border-radius: var(--radius-sm); box-shadow: var(--shadow-md); }
+        .leaflet-popup-content { margin: 15px; font-size: 14px; line-height: 1.6; }
+        .leaflet-popup-content strong { color: var(--primary-color); font-size: 16px; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* DUMMY BADGE */
+        .dummy-badge {
+            position: fixed;
+            top: 12px; right: 12px;
+            background: #f59e0b;
+            color: white;
+            font-size: 0.78em;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            z-index: 9999;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- Dummy Data Badge -->
+    <div class="dummy-badge">⚠ DATA DUMMY — UEQS</div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Dashboard Monitoring Banjir Bekasi</h1>
+            <p>Informasi Banjir Kabupaten Bekasi Berdasarkan Laporan Twitter</p>
+        </header>
+
+        <!-- Dashboard Grid -->
+        <main class="dashboard-grid">
+
+            <!-- Peta -->
+            <section class="card full-width">
+                <h2 class="card-title">Peta Lokasi Kejadian Hari Ini</h2>
+                <div id="map" aria-label="Peta interaktif lokasi banjir"></div>
+            </section>
+
+            <!-- Statistik -->
+            <section class="card stats-section full-width">
+                <h2 class="card-title">Statistik Banjir</h2>
+                <div class="stats-container">
+                    <div class="stat-card stat-primary">
+                        <div class="stat-number" id="total-reports">0</div>
+                        <div class="stat-label">Total Laporan Hari Ini</div>
+                    </div>
+                    <div class="stat-card stat-primary">
+                        <div class="stat-number" id="total-districts">0</div>
+                        <div class="stat-label">Kecamatan Terdampak</div>
+                    </div>
+                    <div class="stat-card stat-secondary">
+                        <div class="stat-number" id="total-reports-all">0</div>
+                        <div class="stat-label">Total Semua Waktu</div>
+                    </div>
+                    <div class="stat-card stat-secondary">
+                        <div class="stat-number" id="total-districts-all">0</div>
+                        <div class="stat-label">Kecamatan Pernah Terdampak</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Grafik Bulanan -->
+            <section class="card chart-section full-width">
+                <h2 class="card-title">Distribusi per Bulan Berdasarkan Historis (2020-2024)</h2>
+                <div class="chart-container">
+                    <canvas id="monthlyChart" aria-label="Grafik distribusi laporan banjir per bulan"></canvas>
+                </div>
+            </section>
+
+            <!-- Statistik per Kecamatan -->
+            <section class="card district-section district-narrow">
+                <h2 class="card-title">Statistik per Kecamatan</h2>
+                <div class="district-stats-container">
+                    <div class="district-stats-section">
+                        <h3 class="district-stats-title">Hari Ini</h3>
+                        <div class="district-list" id="district-list" role="list"></div>
+                    </div>
+                    <div class="district-stats-section">
+                        <h3 class="district-stats-title">Semua Waktu</h3>
+                        <div class="district-list" id="overall-district-list" role="list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Grafik Tahunan -->
+            <section class="card chart-section chart-wide">
+                <h2 class="card-title">Tren Laporan per Tahun Berdasarkan Historis (2020-2024)</h2>
+                <div class="chart-container">
+                    <canvas id="yearlyChart" aria-label="Grafik tren laporan banjir per tahun"></canvas>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer role="contentinfo">
+            <div class="footer-content">
+                <p>Dashboard monitoring banjir real-time di Kabupaten Bekasi berbasis laporan Twitter, mendukung pemantauan dan analisis kejadian banjir secara cepat dan akurat.</p>
+            </div>
+            <div class="last-update">
+                <p>Terakhir diperbarui: <span id="last-update-time"></span> WIB</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script>
+    // ============================================================
+    // DATA DUMMY — Merepresentasikan data nyata dari database
+    // ============================================================
+
+    // Kecamatan di Kabupaten Bekasi dengan koordinat (sesuai KECAMATAN_COORDINATES)
+    const KECAMATAN = [
+        { location: 'Babelan',          lat: -6.1500, lon: 107.0500 },
+        { location: 'Bojongmangu',       lat: -6.4000, lon: 107.2000 },
+        { location: 'Cabangbungin',      lat: -6.1000, lon: 107.1500 },
+        { location: 'Cibarusah',         lat: -6.4500, lon: 107.3500 },
+        { location: 'Cibitung',          lat: -6.2500, lon: 107.1000 },
+        { location: 'Cikarang',          lat: -6.3000, lon: 107.1500 },
+        { location: 'Cikarang Barat',    lat: -6.3500, lon: 107.1000 },
+        { location: 'Cikarang Pusat',    lat: -6.3000, lon: 107.1500 },
+        { location: 'Cikarang Selatan',  lat: -6.3500, lon: 107.2000 },
+        { location: 'Cikarang Timur',    lat: -6.3000, lon: 107.2000 },
+        { location: 'Cikarang Utara',    lat: -6.2500, lon: 107.1500 },
+        { location: 'Karangbahagia',     lat: -6.2000, lon: 107.0500 },
+        { location: 'Kedungwaringin',    lat: -6.4000, lon: 107.2500 },
+        { location: 'Muara Gembong',     lat: -6.0500, lon: 107.1000 },
+        { location: 'Pebayuran',         lat: -6.1000, lon: 107.0500 },
+        { location: 'Serang Baru',       lat: -6.3500, lon: 107.1500 },
+        { location: 'Setu',              lat: -6.3000, lon: 107.1000 },
+        { location: 'Sukakarya',         lat: -6.2500, lon: 107.2000 },
+        { location: 'Sukatani',          lat: -6.4000, lon: 107.1500 },
+        { location: 'Sukawangi',         lat: -6.4500, lon: 107.2000 },
+        { location: 'Tambelang',         lat: -6.2000, lon: 107.0000 },
+        { location: 'Tambun',            lat: -6.2500, lon: 107.0500 },
+        { location: 'Tambun Selatan',    lat: -6.3000, lon: 107.0500 },
+        { location: 'Tambun Utara',      lat: -6.2000, lon: 107.0500 },
+        { location: 'Tarumajaya',        lat: -6.1000, lon: 107.0000 },
+    ];
+
+    // Data hari ini: 5 laporan, 4 kecamatan berbeda (Babelan punya 2 laporan)
+    // Setiap entri = 1 laporan individual, ditampilkan sebagai 1 titik per kecamatan
+    const currentReports = [
+        { location: 'Babelan',       total_reports: 2, avg_lat: -6.1500, avg_lon: 107.0500 },
+        { location: 'Tarumajaya',    total_reports: 1, avg_lat: -6.1000, avg_lon: 107.0000 },
+        { location: 'Muara Gembong', total_reports: 1, avg_lat: -6.0500, avg_lon: 107.1000 },
+        { location: 'Cabangbungin',  total_reports: 1, avg_lat: -6.1000, avg_lon: 107.1500 },
+    ];
+
+    // Data statistik keseluruhan
+    const overallStats = {
+        total_reports_all: 1248,
+        total_districts_all: 15
+    };
+
+    // Data seluruh kecamatan (semua waktu)
+    const overallDistricts = [
+        { location: 'Pebayuran',        total_reports: 452 },
+        { location: 'Tarumajaya',       total_reports: 334 },
+        { location: 'Cikarang Barat',   total_reports: 331 },
+        { location: 'Sukakarya',        total_reports: 289 },
+        { location: 'Cabangbungin',     total_reports: 214 },
+        { location: 'Cikarang Timur',   total_reports: 207 },
+        { location: 'Cikarang Pusat',   total_reports: 158 },
+        { location: 'Muaragembong',     total_reports: 134 },
+        { location: 'Babelan',          total_reports: 121 },
+        { location: 'Tambun Selatan',   total_reports: 98  },
+        { location: 'Tambun Utara',     total_reports: 87  },
+        { location: 'Cikarang Selatan', total_reports: 76  },
+        { location: 'Cikarang Utara',   total_reports: 65  },
+        { location: 'Karangbahagia',    total_reports: 54  },
+        { location: 'Kedungwaringin',   total_reports: 43  },
+    ];
+
+    // Data tren tahunan (2020-2024)
+    const yearlyTrend = [
+        { year: 2020, total_reports: 450 },
+        { year: 2021, total_reports: 345 },
+        { year: 2022, total_reports: 38  },
+        { year: 2023, total_reports: 110 },
+        { year: 2024, total_reports: 65  },
+    ];
+
+    // Data distribusi bulanan (akumulasi 2020-2024)
+    const monthlyDist = [
+        { month: 1,  total_reports: 278 },
+        { month: 2,  total_reports: 265 },
+        { month: 3,  total_reports: 89  },
+        { month: 4,  total_reports: 18  },
+        { month: 5,  total_reports: 12  },
+        { month: 6,  total_reports: 22  },
+        { month: 7,  total_reports: 8   },
+        { month: 8,  total_reports: 15  },
+        { month: 9,  total_reports: 17  },
+        { month: 10, total_reports: 31  },
+        { month: 11, total_reports: 45  },
+        { month: 12, total_reports: 38  },
+    ];
+
+    // Tweet dummy untuk popup peta
+    const DUMMY_TWEETS = [
+        'Jalan depan rumah udah kerendem banjir setinggi lutut, mobilnya ga bisa lewat. #banjirbekasi',
+        'Banjir parah banget, anak-anak ga bisa berangkat sekolah hari ini. Air terus naik dari tadi malam.',
+        'Tolong pemerintah perhatiin drainase di sini dong, tiap hujan lebat pasti banjir. Warga udah capek.',
+        'Air masuk rumah udah 30cm, barang-barang udah diungsiin ke lantai atas. Semoga cepet surut.',
+        'Akses jalan ke kompleks banjir lagi, butuh perahu buat keluar. Mohon bantuan evakuasi.',
+        'Banjir di sini udah 3 hari ga surut-surut, gimana ini? Warga mulai panik.',
+        'Hujan dari tadi subuh ga berhenti, sungai udah meluap ke pemukiman warga sekitar.',
+        'Update: banjir mulai surut tapi lumpur tebal masuk ke dalam rumah. Butuh bantuan bersih-bersih.',
+        'Anak kecil dan lansia diungsiin ke balai desa, situasi darurat di sini.',
+        'Pompa air rusak, jadi banjir tambah parah. Minta tolong dinas terkait segera tindak.',
+    ];
+
+    // Generate map data: SATU titik per kecamatan (semua laporan ditumpuk di koordinat kecamatan)
+    const today = new Date();
+    const mapData = [];
+    currentReports.forEach(district => {
+        const kec = KECAMATAN.find(k => k.location === district.location);
+        if (!kec) return;
+        const count = district.total_reports;
+        const reports = [];
+        for (let i = 0; i < count; i++) {
+            const hoursAgo = Math.floor(Math.random() * 10);
+            const minsAgo  = Math.floor(Math.random() * 60);
+            const d = new Date(today);
+            d.setHours(d.getHours() - hoursAgo, d.getMinutes() - minsAgo);
+            reports.push({
+                id_laporan: mapData.length + i + 1,
+                location:   district.location,
+                tweets:     DUMMY_TWEETS[Math.floor(Math.random() * DUMMY_TWEETS.length)],
+                created_at: d.toISOString().replace('T',' ').substring(0,19),
+            });
+        }
+        // Satu titik per kecamatan, koordinat tepat di tengah kecamatan
+        mapData.push({
+            lat:      kec.lat,
+            lon:      kec.lon,
+            location: district.location,
+            reports:  reports,
+        });
+    });
+
+    // ============================================================
+    // DASHBOARD LOGIC (Sama persis dengan dashboard.js asli)
+    // ============================================================
+
+    let map;
+    let markers = [];
+    let yearlyChart;
+    let monthlyChart;
+
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    const CHART_COLORS = {
+        primary:       '#667eea',
+        secondary:     '#764ba2',
+        primaryLight:  'rgba(102,126,234,0.1)',
+        primaryMedium: 'rgba(102,126,234,0.5)',
+        primaryDark:   'rgba(102,126,234,0.8)'
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set last update time
+        const now = new Date();
+        const opts = { day:'2-digit', month:'long', year:'numeric' };
+        const h = String(now.getHours()).padStart(2,'0');
+        const m = String(now.getMinutes()).padStart(2,'0');
+        document.getElementById('last-update-time').textContent =
+            now.toLocaleDateString('id-ID', opts) + ', ' + h + ':' + m;
+
+        initializeMap();
+        initializeStatistics();
+        initializeDistrictList();
+        initializeOverallDistrictList();
+        initializeCharts();
+    });
+
+    /* ---- MAP ---- */
+    function initializeMap() {
+        map = L.map('map').setView([-6.2383, 106.9756], 12);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+        addMapMarkers();
+        setTimeout(addResetButton, 100);
+    }
+
+    function addMapMarkers() {
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        if (!mapData || mapData.length === 0) return;
+
+        // mapData sudah 1 entry per kecamatan, langsung buat marker
+        mapData.forEach(group => {
+            if (!group.lat || !group.lon) return;
+            const marker = createGroupedFloodMarker(group);
+            marker.addTo(map);
+            markers.push(marker);
+        });
+        if (markers.length > 0) {
+            const g = L.featureGroup(markers);
+            map.fitBounds(g.getBounds().pad(0.2));
+        }
+    }
+
+    function groupReportsByCoordinate(reports) {
+        const groups = {};
+        reports.forEach(r => {
+            if (!r.lat || !r.lon) return;
+            const key = `${parseFloat(r.lat).toFixed(5)},${parseFloat(r.lon).toFixed(5)}`;
+            if (!groups[key]) groups[key] = { lat: r.lat, lon: r.lon, location: r.location, reports: [] };
+            groups[key].reports.push(r);
+        });
+        return Object.values(groups);
+    }
+
+    function createGroupedFloodMarker(group) {
+        const icon = L.divIcon({
+            className: '',
+            html: '<div class="flood-marker"></div>',
+            iconSize: [24,24], iconAnchor: [12,12], popupAnchor: [0,-10]
+        });
+        const lat = parseFloat(group.lat);
+        const lon = parseFloat(group.lon);
+        const marker = L.marker([lat, lon], { icon });
+        marker.groupData   = group;
+        marker.locationName = (group.location || '').trim().toUpperCase();
+        marker.reports      = group.reports || [];
+        marker.bindPopup(createGroupedPopupContent(group));
+        return marker;
+    }
+
+    function createGroupedPopupContent(group) {
+        const location    = group.location || 'Unknown Location';
+        const totalReports = group.reports.length;
+        const sorted      = group.reports.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        const toShow      = sorted.slice(0, 5);
+        const hasMore     = totalReports > 5;
+
+        const reportsHtml = toShow.map((r, i) => {
+            const d = new Date(r.created_at);
+            const text = (r.tweets || r.full_text || '');
+            const trunc = text.length > 100 ? text.substring(0,100) + '...' : text;
+            return `<div style="margin-bottom:${i < toShow.length-1?'12px':'0'};padding-bottom:${i < toShow.length-1?'12px':'0'};border-bottom:${i < toShow.length-1?'1px solid #e5e7eb':'none'};">
+                <span style="color:#6b7280;font-size:11px;display:block;margin-bottom:2px;">${formatDateTime(d)}</span>
+                <p style="margin:0;font-size:13px;line-height:1.5;color:#374151;">${trunc}</p>
+            </div>`;
+        }).join('');
+
+        const moreHtml = hasMore
+            ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;text-align:center;">
+                 <span style="color:#6b7280;font-size:11px;font-style:italic;">+ ${totalReports - 5} laporan lainnya</span>
+               </div>` : '';
+
+        return `<div style="min-width:280px;max-width:400px;">
+            <div style="margin-bottom:12px;">
+                <strong style="color:#dc2626;font-size:17px;display:block;margin-bottom:6px;">${location}</strong>
+                <span style="color:#6b7280;font-size:12px;background:#f3f4f6;padding:4px 8px;border-radius:4px;display:inline-block;">${totalReports} laporan di titik ini</span>
+            </div>
+            <div style="border-top:2px solid #e5e7eb;padding-top:12px;margin-top:8px;max-height:400px;overflow-y:auto;">
+                ${reportsHtml}${moreHtml}
+            </div>
+        </div>`;
+    }
+
+    function resetMapView() {
+        if (!map) return;
+        if (markers.length > 0) {
+            map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1), { animate:true, duration:0.5 });
+        } else {
+            map.setView([-6.2383, 106.9756], 12, { animate:true, duration:0.5 });
+        }
+    }
+
+    function addResetButton() {
+        if (!map) return;
+        const resetControl = L.control({ position: 'topright' });
+        resetControl.onAdd = function() {
+            const div = L.DomUtil.create('div', 'reset-map-control');
+            div.innerHTML = `
+                <button id="reset-map-btn" class="reset-map-button" title="Kembali ke posisi awal peta">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                        <path d="M21 3v5h-5"></path>
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                        <path d="M3 21v-5h5"></path>
+                    </svg>
+                    <span>Reset Posisi</span>
+                </button>`;
+            L.DomEvent.disableClickPropagation(div);
+            L.DomEvent.disableScrollPropagation(div);
+            L.DomEvent.on(div.querySelector('#reset-map-btn'), 'click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                L.DomEvent.preventDefault(e);
+                resetMapView();
+                const btn = div.querySelector('#reset-map-btn');
+                btn.classList.add('clicked');
+                setTimeout(() => btn.classList.remove('clicked'), 300);
+            });
+            return div;
+        };
+        resetControl.addTo(map);
+    }
+
+    /* ---- STATISTICS ---- */
+    function initializeStatistics() {
+        const totalReports    = currentReports.reduce((s,i) => s + parseInt(i.total_reports||0), 0);
+        const totalDistricts  = currentReports.length;
+        const totalReportsAll = parseInt(overallStats?.total_reports_all || 0);
+        const totalDistrictsAll = parseInt(overallStats?.total_districts_all || 0);
+
+        animateNumber(document.getElementById('total-reports'),      0, totalReports,    1000);
+        animateNumber(document.getElementById('total-districts'),    0, totalDistricts,  1000);
+        animateNumber(document.getElementById('total-reports-all'),  0, totalReportsAll, 1000);
+        animateNumber(document.getElementById('total-districts-all'),0, totalDistrictsAll,1000);
+    }
+
+    function animateNumber(el, start, end, duration) {
+        if (!el) return;
+        const range     = end - start;
+        const increment = range / (duration / 16);
+        let current     = start;
+        const timer     = setInterval(() => {
+            current += increment;
+            if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+                current = end; clearInterval(timer);
+            }
+            el.textContent = Math.floor(current);
+        }, 16);
+    }
+
+    /* ---- DISTRICT LIST (Hari Ini) ---- */
+    function initializeDistrictList() {
+        const list = document.getElementById('district-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!currentReports || currentReports.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>Tidak ada data hari ini</p></div>';
+            return;
+        }
+        currentReports.forEach(d => list.appendChild(createDistrictItem(d)));
+    }
+
+    function createDistrictItem(district) {
+        const item = document.createElement('div');
+        item.className = 'district-item';
+        item.title = 'Klik untuk melihat lokasi di peta';
+
+        const name  = document.createElement('span');
+        name.className   = 'district-name';
+        name.textContent = district.location || 'Unknown';
+
+        const count = document.createElement('span');
+        count.className   = 'district-count';
+        count.textContent = district.total_reports || 0;
+
+        item.appendChild(name);
+        item.appendChild(count);
+
+        item.addEventListener('click', () => {
+            let lat = parseFloat(district.avg_lat);
+            let lon = parseFloat(district.avg_lon);
+
+            if ((!isFinite(lat) || !isFinite(lon)) && mapData.length > 0) {
+                const match = mapData.find(r => (r.location||'').trim().toUpperCase() === (district.location||'').trim().toUpperCase() && r.lat && r.lon);
+                if (match) { lat = parseFloat(match.lat); lon = parseFloat(match.lon); }
+            }
+
+            if (isFinite(lat) && isFinite(lon)) {
+                document.getElementById('map').scrollIntoView({ behavior:'smooth', block:'center' });
+                map.setView([lat, lon], 14, { animate:true, duration:0.5 });
+
+                const distName = (district.location||'').trim().toUpperCase();
+                const matched  = markers.find(m => m.locationName === distName ||
+                    (m.locationName && (m.locationName.includes(distName) || distName.includes(m.locationName))));
+
+                setTimeout(() => {
+                    try { map.invalidateSize(); } catch(e) {}
+                    if (matched) {
+                        map.setView(matched.getLatLng(), 14, { animate:true, duration:0.4 });
+                        matched.openPopup();
+                    } else {
+                        L.popup({ closeOnClick:true, autoClose:true })
+                            .setLatLng([lat, lon])
+                            .setContent(`<div style="padding:8px;font-weight:600;">${district.location}</div>`)
+                            .openOn(map);
+                    }
+                }, 350);
+
+                item.style.background = 'var(--bg-lighter)';
+                setTimeout(() => item.style.background = '', 300);
+            }
+        });
+
+        return item;
+    }
+
+    /* ---- DISTRICT LIST (Semua Waktu) ---- */
+    function initializeOverallDistrictList() {
+        const container = document.getElementById('overall-district-list');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!Array.isArray(overallDistricts) || overallDistricts.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>Belum ada data</p></div>';
+            return;
+        }
+        overallDistricts.forEach(item => {
+            const row   = document.createElement('div');
+            row.className = 'district-item district-item-no-click';
+            const name  = document.createElement('span');
+            name.className   = 'district-name';
+            name.textContent = item.location || 'Unknown';
+            const count = document.createElement('span');
+            count.className   = 'district-count';
+            count.textContent = item.total_reports || 0;
+            row.appendChild(name);
+            row.appendChild(count);
+            container.appendChild(row);
+        });
+    }
+
+    /* ---- CHARTS ---- */
+    function initializeCharts() {
+        initializeYearlyChart();
+        initializeMonthlyChart();
+    }
+
+    function initializeYearlyChart() {
+        const ctx = document.getElementById('yearlyChart');
+        if (!ctx) return;
+        const dataMap = {};
+        const yearSet = new Set();
+        yearlyTrend.forEach(d => {
+            const y = parseInt(d.year, 10);
+            dataMap[y] = parseInt(d.total_reports || 0);
+            if (!isNaN(y)) yearSet.add(y);
+        });
+        const labels = Array.from(yearSet).sort((a,b) => a-b);
+        const data   = labels.map(y => dataMap[y] || 0);
+
+        yearlyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Jumlah Laporan',
+                    data,
+                    borderColor:       CHART_COLORS.primary,
+                    backgroundColor:   CHART_COLORS.primaryLight,
+                    tension: 0.4, fill: true,
+                    pointRadius: 5, pointHoverRadius: 7,
+                    pointBackgroundColor: CHART_COLORS.primary,
+                    pointBorderColor: '#fff', pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)', padding: 12,
+                        titleFont: { size: 14 }, bodyFont: { size: 13 },
+                        callbacks: { label: ctx => `Laporan: ${ctx.parsed.y}` }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision:0, font:{ size:12 } }, grid: { color:'rgba(0,0,0,0.05)' } },
+                    x: { ticks: { font:{ size:12 } }, grid: { display:false } }
+                }
+            }
+        });
+    }
+
+    function initializeMonthlyChart() {
+        const ctx = document.getElementById('monthlyChart');
+        if (!ctx) return;
+        const dataMap = {};
+        monthlyDist.forEach(d => { dataMap[d.month] = parseInt(d.total_reports || 0); });
+        const labels = [1,2,3,4,5,6,7,8,9,10,11,12].map(m => MONTH_NAMES[m-1]);
+        const data   = [1,2,3,4,5,6,7,8,9,10,11,12].map(m => dataMap[m] || 0);
+
+        monthlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Jumlah Laporan', data,
+                    backgroundColor: CHART_COLORS.primaryDark,
+                    borderColor:     CHART_COLORS.primary,
+                    borderWidth: 1, borderRadius: 5,
+                    hoverBackgroundColor: CHART_COLORS.primary
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)', padding: 12,
+                        titleFont: { size:14 }, bodyFont: { size:13 },
+                        callbacks: { label: ctx => `Laporan: ${ctx.parsed.y}` }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision:0, font:{ size:12 } }, grid: { color:'rgba(0,0,0,0.05)' } },
+                    x: { ticks: { font:{ size:12 } }, grid: { display:false } }
+                }
+            }
+        });
+    }
+
+    /* ---- UTILITY ---- */
+    function formatDateTime(date) {
+        const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        const h = String(date.getHours()).padStart(2,'0');
+        const m = String(date.getMinutes()).padStart(2,'0');
+        return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()} pukul ${h}.${m} WIB`;
+    }
+    </script>
+</body>
+</html>
