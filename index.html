@@ -51,7 +51,9 @@
             color: var(--text-dark);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
+            padding-top: 46px;
         }
+        body.banner-collapsed { padding-top: 0; }
 
         .container { max-width: 100%; width: 100%; margin: 0 auto; padding: 0 10px; }
 
@@ -116,7 +118,8 @@
         }
 
         @media (max-width: 480px) {
-            body { padding: 5px; }
+            body { padding: 5px; padding-top: 46px; }
+            body.banner-collapsed { padding-top: 0; }
             .container { padding: 0 5px; }
             .dashboard-grid { gap: 15px; grid-template-columns: 1fr; }
             .district-narrow, .chart-wide { grid-column: span 1; }
@@ -367,7 +370,9 @@
             }
         }
 
-        /* DUMMY BANNER */
+        /* ====================================
+           DUMMY BANNER (RESPONSIF)
+        ==================================== */
         .dummy-banner {
             position: fixed;
             top: 0; left: 0; right: 0;
@@ -388,6 +393,8 @@
         .dummy-banner-bar .banner-left {
             display: flex; align-items: center; gap: 8px;
             flex: 1; justify-content: center;
+            flex-wrap: wrap;
+            text-align: center;
         }
         .dummy-banner-toggle {
             background: rgba(255,255,255,0.2);
@@ -422,8 +429,11 @@
         }
         .dummy-banner-tab:hover { background: #b45309; }
         .dummy-banner.collapsed .dummy-banner-tab { display: block; }
-        body { padding-top: 44px; }
-        body.banner-collapsed { padding-top: 0; }
+
+        @media (max-width: 480px) {
+            .dummy-banner-bar { padding: 8px 12px; font-size: 0.80em; }
+            .dummy-banner-bar .banner-left { gap: 5px; }
+        }
     </style>
 </head>
 <body>
@@ -442,9 +452,8 @@
     <script>
         function toggleBanner() {
             const banner = document.getElementById('dummy-banner');
-            const body   = document.body;
             const isCollapsed = banner.classList.toggle('collapsed');
-            body.classList.toggle('banner-collapsed', isCollapsed);
+            document.body.classList.toggle('banner-collapsed', isCollapsed);
         }
     </script>
 
@@ -523,7 +532,7 @@
         <!-- Footer -->
         <footer role="contentinfo">
             <div class="footer-content">
-                <p>Dashboard monitoring banjir real-time di Kabupaten Bekasi berbasis laporan Twitter, mendukung pemantauan dan analisis kejadian banjir secara cepat dan akurat.</p>
+                <p>Dashboard ini menyajikan informasi banjir di Kabupaten Bekasi berdasarkan laporan masyarakat melalui Twitter. </p>
             </div>
             <div class="last-update">
                 <p>Terakhir diperbarui: <span id="last-update-time"></span> WIB</p>
@@ -541,39 +550,47 @@
     // DATA DUMMY — Merepresentasikan data nyata dari database
     // ============================================================
 
-    // Kecamatan di Kabupaten Bekasi dengan koordinat
+    // Kecamatan di Kabupaten Bekasi dengan koordinat (sesuai KECAMATAN_COORDINATES)
     const KECAMATAN = [
-        { location: 'Pebayuran',       lat: -6.1747, lon: 107.1933 },
-        { location: 'Tarumajaya',      lat: -6.0887, lon: 107.0387 },
-        { location: 'Cikarang Barat',  lat: -6.2833, lon: 107.1333 },
-        { location: 'Sukakarya',       lat: -6.2200, lon: 107.1650 },
-        { location: 'Cabangbungin',    lat: -6.1300, lon: 107.1500 },
-        { location: 'Cikarang Timur',  lat: -6.2600, lon: 107.2200 },
-        { location: 'Cikarang Pusat',  lat: -6.2700, lon: 107.1700 },
-        { location: 'Muaragembong',    lat: -5.9987, lon: 107.0654 },
-        { location: 'Babelan',         lat: -6.1200, lon: 107.0200 },
-        { location: 'Tambun Selatan',  lat: -6.2400, lon: 107.0100 },
-        { location: 'Tambun Utara',    lat: -6.1800, lon: 107.0200 },
-        { location: 'Cikarang Selatan',lat: -6.3500, lon: 107.1800 },
-        { location: 'Cikarang Utara',  lat: -6.2200, lon: 107.1400 },
-        { location: 'Karangbahagia',   lat: -6.2100, lon: 107.1100 },
-        { location: 'Kedungwaringin',  lat: -6.2800, lon: 107.2900 },
+        { location: 'Babelan',          lat: -6.1500, lon: 107.0500 },
+        { location: 'Bojongmangu',       lat: -6.4000, lon: 107.2000 },
+        { location: 'Cabangbungin',      lat: -6.1000, lon: 107.1500 },
+        { location: 'Cibarusah',         lat: -6.4500, lon: 107.3500 },
+        { location: 'Cibitung',          lat: -6.2500, lon: 107.1000 },
+        { location: 'Cikarang',          lat: -6.3000, lon: 107.1500 },
+        { location: 'Cikarang Barat',    lat: -6.3500, lon: 107.1000 },
+        { location: 'Cikarang Pusat',    lat: -6.3000, lon: 107.1500 },
+        { location: 'Cikarang Selatan',  lat: -6.3500, lon: 107.2000 },
+        { location: 'Cikarang Timur',    lat: -6.3000, lon: 107.2000 },
+        { location: 'Cikarang Utara',    lat: -6.2500, lon: 107.1500 },
+        { location: 'Karangbahagia',     lat: -6.2000, lon: 107.0500 },
+        { location: 'Kedungwaringin',    lat: -6.4000, lon: 107.2500 },
+        { location: 'Muara Gembong',     lat: -6.0500, lon: 107.1000 },
+        { location: 'Pebayuran',         lat: -6.1000, lon: 107.0500 },
+        { location: 'Serang Baru',       lat: -6.3500, lon: 107.1500 },
+        { location: 'Setu',              lat: -6.3000, lon: 107.1000 },
+        { location: 'Sukakarya',         lat: -6.2500, lon: 107.2000 },
+        { location: 'Sukatani',          lat: -6.4000, lon: 107.1500 },
+        { location: 'Sukawangi',         lat: -6.4500, lon: 107.2000 },
+        { location: 'Tambelang',         lat: -6.2000, lon: 107.0000 },
+        { location: 'Tambun',            lat: -6.2500, lon: 107.0500 },
+        { location: 'Tambun Selatan',    lat: -6.3000, lon: 107.0500 },
+        { location: 'Tambun Utara',      lat: -6.2000, lon: 107.0500 },
+        { location: 'Tarumajaya',        lat: -6.1000, lon: 107.0000 },
     ];
 
-    // Data hari ini (dummy real-time)
+    // Data hari ini: 5 laporan, 4 kecamatan berbeda (Babelan punya 2 laporan)
+    // Setiap entri = 1 laporan individual, ditampilkan sebagai 1 titik per kecamatan
     const currentReports = [
-        { location: 'Pebayuran',      total_reports: 12, avg_lat: -6.1747, avg_lon: 107.1933 },
-        { location: 'Tarumajaya',     total_reports: 9,  avg_lat: -6.0887, avg_lon: 107.0387 },
-        { location: 'Cikarang Barat', total_reports: 7,  avg_lat: -6.2833, avg_lon: 107.1333 },
-        { location: 'Sukakarya',      total_reports: 6,  avg_lat: -6.2200, avg_lon: 107.1650 },
-        { location: 'Cabangbungin',   total_reports: 4,  avg_lat: -6.1300, avg_lon: 107.1500 },
-        { location: 'Cikarang Timur', total_reports: 3,  avg_lat: -6.2600, avg_lon: 107.2200 },
-        { location: 'Cikarang Pusat', total_reports: 3,  avg_lat: -6.2700, avg_lon: 107.1700 },
+        { location: 'Babelan',       total_reports: 2, avg_lat: -6.1500, avg_lon: 107.0500 },
+        { location: 'Tarumajaya',    total_reports: 1, avg_lat: -6.1000, avg_lon: 107.0000 },
+        { location: 'Muara Gembong', total_reports: 1, avg_lat: -6.0500, avg_lon: 107.1000 },
+        { location: 'Cabangbungin',  total_reports: 1, avg_lat: -6.1000, avg_lon: 107.1500 },
     ];
 
     // Data statistik keseluruhan
     const overallStats = {
-        total_reports_all: 1243,
+        total_reports_all: 1248,
         total_districts_all: 15
     };
 
@@ -625,7 +642,6 @@
     const DUMMY_TWEETS = [
         'Jalan depan rumah udah kerendem banjir setinggi lutut, mobilnya ga bisa lewat. #banjirbekasi',
         'Banjir parah banget, anak-anak ga bisa berangkat sekolah hari ini. Air terus naik dari tadi malam.',
-        'Tolong pemerintah perhatiin drainase di sini dong, tiap hujan lebat pasti banjir. Warga udah capek.',
         'Air masuk rumah udah 30cm, barang-barang udah diungsiin ke lantai atas. Semoga cepet surut.',
         'Akses jalan ke kompleks banjir lagi, butuh perahu buat keluar. Mohon bantuan evakuasi.',
         'Banjir di sini udah 3 hari ga surut-surut, gimana ini? Warga mulai panik.',
@@ -635,29 +651,33 @@
         'Pompa air rusak, jadi banjir tambah parah. Minta tolong dinas terkait segera tindak.',
     ];
 
-    // Generate map data dari currentReports dengan tweet dummy
+    // Generate map data: SATU titik per kecamatan (semua laporan ditumpuk di koordinat kecamatan)
     const today = new Date();
     const mapData = [];
     currentReports.forEach(district => {
         const kec = KECAMATAN.find(k => k.location === district.location);
         if (!kec) return;
         const count = district.total_reports;
+        const reports = [];
         for (let i = 0; i < count; i++) {
-            const offsetLat = (Math.random() - 0.5) * 0.01;
-            const offsetLon = (Math.random() - 0.5) * 0.01;
             const hoursAgo = Math.floor(Math.random() * 10);
             const minsAgo  = Math.floor(Math.random() * 60);
             const d = new Date(today);
             d.setHours(d.getHours() - hoursAgo, d.getMinutes() - minsAgo);
-            mapData.push({
-                id_laporan: mapData.length + 1,
+            reports.push({
+                id_laporan: mapData.length + i + 1,
                 location:   district.location,
-                lat:        (kec.lat + offsetLat).toFixed(6),
-                lon:        (kec.lon + offsetLon).toFixed(6),
                 tweets:     DUMMY_TWEETS[Math.floor(Math.random() * DUMMY_TWEETS.length)],
                 created_at: d.toISOString().replace('T',' ').substring(0,19),
             });
         }
+        // Satu titik per kecamatan, koordinat tepat di tengah kecamatan
+        mapData.push({
+            lat:      kec.lat,
+            lon:      kec.lon,
+            location: district.location,
+            reports:  reports,
+        });
     });
 
     // ============================================================
@@ -698,7 +718,8 @@
     function initializeMap() {
         map = L.map('map').setView([-6.2383, 106.9756], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors', maxZoom: 19
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
         }).addTo(map);
         addMapMarkers();
         setTimeout(addResetButton, 100);
@@ -709,8 +730,8 @@
         markers = [];
         if (!mapData || mapData.length === 0) return;
 
-        const groupedReports = groupReportsByCoordinate(mapData);
-        groupedReports.forEach(group => {
+        // mapData sudah 1 entry per kecamatan, langsung buat marker
+        mapData.forEach(group => {
             if (!group.lat || !group.lon) return;
             const marker = createGroupedFloodMarker(group);
             marker.addTo(map);
@@ -718,7 +739,7 @@
         });
         if (markers.length > 0) {
             const g = L.featureGroup(markers);
-            map.fitBounds(g.getBounds().pad(0.1));
+            map.fitBounds(g.getBounds().pad(0.2));
         }
     }
 
