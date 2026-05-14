@@ -370,22 +370,35 @@
         /* DUMMY BADGE */
         .dummy-badge {
             position: fixed;
-            top: 12px; right: 12px;
-            background: #f59e0b;
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
             color: white;
-            font-size: 0.78em;
-            font-weight: 700;
-            padding: 5px 12px;
-            border-radius: 20px;
+            font-size: 0.88em;
+            font-weight: 600;
+            padding: 10px 20px;
             z-index: 9999;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-align: center;
         }
+        .dummy-badge .badge-icon { font-size: 1.1em; flex-shrink: 0; }
+        .dummy-badge .badge-text strong { font-weight: 700; text-decoration: underline; }
+        body { padding-top: 46px; }
     </style>
 </head>
 <body>
-    <!-- Dummy Data Badge -->
-    <div class="dummy-badge">⚠ DATA DUMMY — UEQS</div>
+    <!-- Dummy Data Warning Banner -->
+    <div class="dummy-badge">
+        <span class="badge-icon">⚠️</span>
+        <span class="badge-text">
+            <strong>PERHATIAN: Data pada halaman ini adalah DATA SIMULASI (rekayasa) untuk keperluan pengujian sistem UEQS — bukan data kejadian banjir yang sesungguhnya.</strong>
+        </span>
+        <span class="badge-icon">⚠️</span>
+    </div>
 
     <div class="container">
         <!-- Header -->
@@ -648,15 +661,14 @@
     /* ---- MAP ---- */
     function initializeMap() {
         map = L.map('map').setView([-6.2383, 106.9756], 12);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
-            subdomains: 'abcd',
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 19
         }).addTo(map);
         addMapMarkers();
         setTimeout(addResetButton, 100);
     }
-
+    
     function addMapMarkers() {
         markers.forEach(m => map.removeLayer(m));
         markers = [];
